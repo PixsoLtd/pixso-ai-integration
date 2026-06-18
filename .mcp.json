@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "pixso": {
+      "type": "http",
+      "url": "http://localhost:3667/mcp"
+    }
+  }
+}

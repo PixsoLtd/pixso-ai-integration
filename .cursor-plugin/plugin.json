@@ -1,0 +1,19 @@
+{
+  "name": "pixso",
+  "displayName": "Pixso",
+  "version": "0.3.0",
+  "description": "Pixso AI integration for design-to-code, code-to-design, design editing, assets, variables, styles, components, and visual verification.",
+  "author": {
+    "name": "Pixso"
+  },
+  "keywords": [
+    "pixso",
+    "design",
+    "mcp",
+    "ui",
+    "design-to-code",
+    "code-to-design"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json"
+}
