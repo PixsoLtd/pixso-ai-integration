@@ -8,6 +8,25 @@ disable-model-invocation: false
 
 Use this skill when the user wants to import, paste, capture, push, or convert HTML, a web page URL, or bundled UI code into editable Pixso design nodes.
 
+## Activation gate
+
+This skill is opt-in by default. Use it only when the user explicitly requests HTML / URL / ZIP / static web artifacts to be converted into Pixso designs.
+
+Use this skill when:
+
+- the user asks to generate HTML and convert it into a Pixso design;
+- the user explicitly asks to use `code_to_design`;
+- the user asks to import HTML, URL capture output, ZIP bundles, or static web bundles;
+- the user asks to convert an existing web page or static HTML artifact into editable Pixso nodes.
+
+Fallback exception:
+
+- If the user asks to create or edit a Pixso design without requesting HTML conversion, use `pixso-design-editing` first.
+- Only when the current Pixso MCP tool list does not include `apply_design`, use this skill as the fallback path through `code_to_design`.
+- When using this fallback, explicitly report that `apply_design` was unavailable and the design was generated through HTML-to-design conversion instead.
+
+When `apply_design` is available, do not use this skill for general Pixso design creation, UI mockups, redesigns, homepage generation, app screen generation, or canvas editing.
+
 ## Skill boundaries
 
 Use this skill for:
