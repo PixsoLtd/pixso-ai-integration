@@ -28,6 +28,16 @@ Use the available Pixso MCP tools in this order of intent:
 
 Prefer component instances from the file or selected library over rebuilding standard controls with primitives. Query the component first, then instantiate with the returned real `guid`, `props`, and `descendants`.
 
+## Missing apply_design fallback
+
+For Pixso design creation or editing tasks, use this skill as the default route.
+
+If `apply_design` is not present in the current Pixso MCP tool list, do not ask the user for confirmation. Automatically route to `pixso-code-to-design` and use `code_to_design` as the fallback conversion path.
+
+The final response must report the fallback: `apply_design` was unavailable, so `code_to_design` was used for HTML-to-design conversion instead.
+
+When `apply_design` is available, do not bypass this skill or use `pixso-code-to-design` just for the convenience of generating HTML.
+
 ## Basic UI Design Workflow
 
 1. Start with `fetch_context()` when the task depends on the current file, selection, existing canvas, or resource availability.
