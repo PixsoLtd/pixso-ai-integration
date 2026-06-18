@@ -1,124 +1,59 @@
 ---
-name: pixso-design-editing
-description: "**MANDATORY before Pixso canvas mutations** - use this skill before creating, updating, replacing, moving, deleting, grouping, or otherwise mutating Pixso nodes. Inspect the target, apply focused operations with Pixso MCP, read validation feedback, check layout, and verify with screenshots."
-disable-model-invocation: false
+name: pixso-design
+description: Use when an agent needs to create, modify, inspect, or refine UI designs inside Pixso with Pixso MCP tools, including Pixso canvas editing, Pixso DSL or apply_design work, UI mockups, design review fixes, screenshot-based visual checks, node or frame updates, Pixso design drafts, interface design, visual mockups, canvas changes, or UI redesign requests.
 ---
 
-# Pixso Design Editing — Safe Canvas Mutation Skill
+# Pixso Design
 
-Use this skill before any Pixso operation that creates, updates, replaces, moves, deletes, groups, inserts, copies, or otherwise mutates canvas nodes.
+## Overview
 
-## Skill boundaries
+Use Pixso MCP as the design execution surface, not as a code generator. The goal is to produce or refine editable Pixso UI designs that match the user's product intent, visual requirements, and target device or frame.
 
-Use this skill for:
+Pixso MCP tools can change over time. Always discover and follow the tool-provided resource guides or help output before assuming tool names, parameters, or supported operations.
 
-- creating frames, groups, shapes, text, images, icons, notes, or composed UI layouts;
-- editing existing node properties, text, layout, fills, strokes, effects, radius, padding, gaps, or visibility;
-- replacing, deleting, moving, grouping, or reparenting existing nodes;
-- applying targeted repairs after `code_to_design` or other conversions;
-- using `apply_design` directly.
+## Tool Map
 
-If the task is primarily variables, styles, components, or token normalization, also use `pixso-design-system`. If the task requires final screenshot review or export verification, also use `pixso-visual-verify`.
+Use the available Pixso MCP tools in this order of intent:
 
-## Required tools
+| Need | Tool pattern |
+| --- | --- |
+| Understand current file, selection, fonts, and resource counts | `fetch_context()` |
+| Find empty canvas space before adding top-level frames | `find_empty_space_on_canvas()` |
+| Inspect variables, styles, or reusable components | `read_variables()`, `read_styles()`, `read_components()` |
+| Inspect concrete nodes, component descendants, and component props | `query_nodes()` |
+| Create or update variables and styles | `write_variables()`, `write_styles()` |
+| Create, copy, move, update, or delete design nodes | `apply_design()` with DSL operations such as `I()`, `C()`, `M()`, `U()`, `D()`, `G()` |
+| Check structural layout problems cheaply | `check_layout()` |
+| Do final visual review | `take_screenshot()` |
 
-- `fetch_context` when the task depends on the current selection, document map, variables, styles, or components.
-- `query_nodes` before editing existing nodes or when targeted structural/property inspection is needed.
-- `apply_design` for mutations.
-- `check_layout` after structural edits, conversion repairs, or any change that can affect geometry.
-- `take_screenshot` for final visual verification.
-- `load_guidelines` for specialized design tasks when relevant.
+Prefer component instances from the file or selected library over rebuilding standard controls with primitives. Query the component first, then instantiate with the returned real `guid`, `props`, and `descendants`.
 
-## Critical rules
+## Basic UI Design Workflow
 
-1. **Inspect before mutation.** Never delete, replace, move, or restyle existing nodes until you have inspected the specific target or current selection.
-2. **Keep mutations small.** Use focused `apply_design` batches. A single call must contain at most 50 operations.
-3. **Use operation statements only.** `apply_design.operations` supports operation statements such as `I(...)`, `C(...)`, `R(...)`, `U(...)`, `M(...)`, `D(...)`, and `G(...)`. Do not write non-operation aliases.
-4. **Bindings are local to one `apply_design` call.** Operation result bindings do not persist across calls. Reference nodes created in previous calls by literal node ID.
-5. **Read all feedback.** Validation failures and potential issues are not informational noise; fix them or explicitly report why they remain.
-6. **Preserve visual intent.** Do not redesign the UI unless asked. Repairs should target concrete defects such as clipping, missing content, overlap, or misalignment.
-7. **Verify after edits.** Layout checks and screenshots are required when visuals or layout matter.
+1. Start with `fetch_context()` when the task depends on the current file, selection, existing canvas, or resource availability.
+2. Classify the request:
+   - Restore or 1:1 recreation: reconstruct from the reference first. Do not load generic style inspiration before the first reconstruction.
+   - Creative UI generation: gather suitable style guidance, then use the design system resources already present in the file.
+   - Small edit or composition: operate on the selected or named target, reusing existing tokens, styles, and components.
+3. Read reusable resources with `read_variables()`, `read_styles()`, and `read_components()`. Use returned `$variableName`, `$style/...`, and component ids exactly as returned.
+4. For any matching component or component set, batch `query_nodes()` calls. For component sets, choose a valid `variantName`, query that concrete variant, and use the returned `guid` as the instance `ref`.
+5. Call `find_empty_space_on_canvas()` before creating top-level screens or boards.
+6. Use `apply_design()` to complete one screen or coherent section at a time. Create top-level frames with vertical auto layout; use `fit_content`, `fill_container`, or explicit pixel sizes for every node.
+7. Read every `apply_design()` feedback section. Fix validation failures, unresolved resources, missing icons, and layout warnings before continuing.
+8. Use `check_layout()` between substantial edits or when confidence is low. Reserve `take_screenshot()` for final visual verification; batch up to three node ids when comparing multiple screens.
+9. If the user requested specs or a design-system board, generate the draft first, then extract only the requested spec sections from actual draft usage. Bind colors, type, effects, spacing, and radius back to draft nodes before documenting them.
+10. End with a concise status: what was created or changed, what was verified, and any remaining limitation.
 
-## Hard gates — forbidden shortcuts
+## DSL Rules
 
-- **Forbidden:** `apply_design` on existing content before `fetch_context` or `query_nodes` inspection.
-- **Forbidden:** deleting or replacing nodes based only on a name if the inspected structure contradicts the user's description.
-- **Forbidden:** more than 50 operations in a single `apply_design` call.
-- **Forbidden:** non-operation aliases such as `screen = "2:31"` inside `apply_design.operations`.
-- **Forbidden:** ignoring validation failures, unresolved variables, unsupported emojis, icon issues, font fallbacks, clipping, or layout problems returned by Pixso tools.
-- **Forbidden:** claiming completion before `check_layout` and screenshot verification when visual output matters.
+- Validate all `apply_design()` payloads against the DSL schema in [references/dsl-schema.ts](references/dsl-schema.ts). That file is the complete schema and must be treated as authoritative.
+- Every visible text value must follow the user's requested UI language. Preserve exact user-provided copy, brand names, acronyms, versions, file names, and technical identifiers when translation would be unnatural.
+- Text nodes must have visible `fillPaints`. Set `textGrowth` before relying on text width or height.
+- There is no image node type. Create a frame or rectangle, then use `G()` to apply the image fill.
+- Auto layout uses flexbox-like behavior. Children inside auto layout ignore `left` and `top` unless `layoutPositioning: true`, which must include explicit `left` and `top`.
+- User-supplied bare numeric values are literal pixels except opacity percentages and rotation degrees. Agent-chosen `lineHeight` should usually be a ratio such as `1.4`; user-supplied line height should be emitted as `"Npx"`.
+- Node ids are dynamic. Use ids returned by current tool results; do not guess them. In the same `apply_design()` call, refer to newly created nodes by the local variables returned from `I()` or `C()`.
 
-## Required workflow
+## DSL Schema
 
-1. **Identify the target.** Use the current selection, user-provided node IDs, Pixso URL `item-id`, or document context.
-2. **Inspect first.** Use `fetch_context` or targeted `query_nodes` before editing existing nodes.
-3. **Load specialized guidance if needed.** Use `load_guidelines` for relevant topics:
-   - `code`
-   - `table`
-   - `tailwind`
-   - `landing-page`
-   - `design-system`
-   - `mobile-app`
-   - `web-app`
-   - `slides`
-4. **Plan a focused mutation.** Prefer the smallest operation batch that achieves the next verifiable step.
-5. **Call `apply_design`.** Use operation statements only, and keep the batch within the 50-operation limit.
-6. **Read every response section.** Inspect operation results, validation failures, and potential issues.
-7. **Fix reported issues.** Address font fallbacks, unresolved variables, unsupported emojis, icon issues, clipping, overlap, and layout problems.
-8. **Check layout.** Run `check_layout` on the affected node tree when geometry may have changed.
-9. **Verify visually.** Use `take_screenshot` for final visual review, preferably on the smallest affected node or up to three nodes when comparing.
-10. **Report honestly.** State what changed, what was verified, and any known remaining divergence.
-
-## Query rules
-
-- Always pass `searchDepth` to `query_nodes`.
-- Use `searchDepth` 1-3 by default.
-- Use `searchDepth = 0` only when the user explicitly asks to search the whole document or every matching node.
-- Use `fields` to request only relevant non-structural properties.
-- Use `resolveVariables` when computed values are needed.
-- Use `resolveInstances` only when component instance internals must be inspected.
-- Treat absent requested fields as absent or not applicable; do not re-query only to confirm absence.
-
-## `apply_design` patterns
-
-### Correct: create and use bindings in the same call
-
-```text
-screen=I("document", {"type":"frame","name":"Screen","x":100,"y":100,"width":390,"height":844})
-I(screen, {"type":"text","name":"Title","characters":"Dashboard","x":24,"y":24})
-```
-
-### Wrong: define a non-operation alias
-
-```text
-screen="2:31"
-I(screen, {"type":"text","characters":"Title"})
-```
-
-### Correct: reference a previous node by literal ID
-
-```text
-I("2:31", {"type":"text","name":"Title","characters":"Dashboard","x":24,"y":24})
-```
-
-## Error recovery
-
-- If validation fails, do not retry the same operation unchanged. Fix the cause and run a smaller corrected batch.
-- If a node ID is missing, inspect the latest context instead of guessing.
-- If a component, style, variable, or variant cannot be resolved, switch to `pixso-design-system` to read available resources.
-- If layout check reports clipping or overlap, repair the affected subtree and re-run `check_layout`.
-- If a screenshot shows visual defects, fix all visible issues before claiming success.
-
-## Completion checklist
-
-Before reporting completion, verify:
-
-- target nodes were inspected before mutation;
-- every `apply_design` batch used only valid operation statements and stayed within 50 operations;
-- validation failures and potential issues were handled;
-- required content is present and visible;
-- no text is clipped;
-- spacing and alignment are intentional;
-- similar elements have consistent sizes;
-- colors, radius, shadows, borders, icons, images, and typography match the requested design;
-- `check_layout` and screenshot verification were completed when visuals matter.
+The full DSL schema is stored in [references/dsl-schema.ts](references/dsl-schema.ts), copied unchanged from `.\references\dsl-schema.ts`. Load it whenever authoring or validating non-trivial `apply_design()` DSL.
