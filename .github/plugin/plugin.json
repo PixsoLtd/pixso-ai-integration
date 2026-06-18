@@ -1,0 +1,16 @@
+{
+  "name": "pixso",
+  "description": "Pixso AI integration for design-to-code, code-to-design, design editing, assets, variables, styles, components, and visual verification.",
+  "version": "0.3.0",
+  "author": {
+    "name": "Pixso"
+  },
+  "keywords": [
+    "pixso",
+    "design",
+    "mcp",
+    "ui",
+    "design-to-code",
+    "code-to-design"
+  ]
+}

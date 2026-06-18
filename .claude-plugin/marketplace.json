@@ -1,0 +1,20 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "pixso-local",
+  "description": "Local Pixso plugin marketplace for Claude Code.",
+  "owner": {
+    "name": "Pixso"
+  },
+  "plugins": [
+    {
+      "name": "pixso",
+      "source": "./",
+      "description": "Pixso AI integration for design-to-code, code-to-design, design editing, assets, variables, styles, components, and visual verification.",
+      "author": {
+        "name": "Pixso"
+      },
+      "category": "design",
+      "tags": ["pixso", "design", "mcp", "ui", "design-to-code", "code-to-design"]
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "name": "pixso-ai-integration",
+  "version": "0.3.0",
+  "private": true,
+  "description": "Pixso plugin package for Claude Code, Cursor, Gemini, and Codex-compatible local plugin workflows.",
+  "scripts": {
+    "validate:claude": "claude plugin validate ."
+  }
+}
