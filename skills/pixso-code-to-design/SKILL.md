@@ -56,6 +56,10 @@ Do not pass URLs directly to `code_to_design`. Convert URL input into either a s
 - Keep linked assets local to the bundle when possible. Remote, cross-origin, hotlinked, or authenticated assets may not resolve reliably.
 - If the source is a live app page, produce or request a static HTML/asset export before calling `code_to_design`.
 
+## Pre-call input gate
+
+Before calling `code_to_design`, confirm that the argument is the final artifact, not a placeholder, variable name, file path, or summary. `htmlStr` must contain the target HTML and key page content; `htmlBuffer` must be real ZIP bytes. Do not pass `PLACEHOLDER`, `TODO`, an empty body, or a temporary stub that is not the user's target artifact. If the artifact is too large, use `htmlBuffer` instead of placeholder `htmlStr`. A simple test page or demo page is valid when the user explicitly wants that page imported.
+
 ## URL input workflow
 
 When the user provides a URL, the local agent must turn it into a static conversion artifact before `code_to_design`.
@@ -65,11 +69,27 @@ When the user provides a URL, the local agent must turn it into a static convers
    - a public unauthenticated URL;
    - an authenticated, session-dependent, or highly dynamic URL.
 2. **Render or fetch the page locally.** Prefer a browser/rendered DOM capture when client-side JavaScript affects the final UI. For dynamic pages, wait until the desired state is visible before capturing.
-3. **Capture the HTML entrypoint.** Use the rendered DOM when visual state matters, not just initial server HTML.
-4. **Collect required resources.** Include CSS stylesheets, critical inline styles, images, fonts, SVGs/icons, and other static assets required for visual fidelity.
-5. **Rebase references.** Rewrite HTML/CSS asset URLs to local relative paths inside the bundle.
-6. **Create a ZIP bundle.** Include the HTML entrypoint and all collected resources.
-7. **Call `code_to_design` with `htmlBuffer`.** Use `htmlStr` only for a fully self-contained capture.
+3. **Confirm rendered state.** If the page shows login, permission, error, empty state, or the target content is not visible, ask whether to import the current state or provide the target state; do not call `code_to_design` before confirmation.
+4. **Capture the HTML entrypoint.** Use the rendered DOM when visual state matters, not just initial server HTML.
+5. **Collect required resources.** Include CSS stylesheets, critical inline styles, images, fonts, SVGs/icons, and other static assets required for visual fidelity.
+6. **Rebase references.** Rewrite HTML/CSS asset URLs to local relative paths inside the bundle.
+7. **Create a ZIP bundle.** Include the HTML entrypoint and all collected resources.
+8. **Call `code_to_design` with `htmlBuffer`.** Use `htmlStr` only for a fully self-contained capture.
+
+## Resource collection rules
+
+For URL-to-design capture, collect only resources that affect the current rendered visual output. Do not discover resources with a broad regex over the full HTML; extract by DOM / CSS source type. URLs outside the allowlist are not downloaded, inlined, or bundled by default.
+
+Collect only:
+
+- `img[src]`, `img[srcset]`, and `picture source[srcset]`;
+- visible media posters and SVG/icon references required by rendered UI;
+- CSS `url(...)` values from inline styles and stylesheets;
+- `@font-face src`.
+
+Do not collect non-visual resources such as `a[href]`, `form[action]`, script/API/analytics/redirect URLs, meta/link preview data, plain-text URLs, or license/download/external document links.
+
+Every downloaded resource must record its usage source, such as `img.src`, `css.background-image`, or `font-face.src`. For any single resource larger than 2 MB, first confirm whether it is visible or required for visual fidelity; skip non-visual resources, and prefer bundling visually required resources as files instead of base64 inlining.
 
 ## Critical rules
 
@@ -87,6 +107,7 @@ When the user provides a URL, the local agent must turn it into a static convers
 - **Forbidden:** using `htmlStr` for a URL-derived page while leaving external CSS, image, font, SVG, or icon URLs unresolved, unless the limitation is intentional and explicitly reported.
 - **Forbidden:** claiming URL capture fidelity without packaging or inlining required resources.
 - **Forbidden:** broad visual redesign of the imported result unless requested.
+- **Forbidden:** automatically switching to `pixso-design` / `apply_design` to rebuild when `code_to_design` fails, the input is wrong, or the result clearly mismatches. First report the failure and ask whether to check the link/input or use Pixso design to generate an approximation.
 
 ## Required workflow
 
@@ -102,8 +123,8 @@ No generated-result validation is required; a successful `code_to_design` method
 
 ## Fallbacks
 
-- For dynamic pages, authenticated pages, or pages dependent on runtime state, first create a static HTML snapshot or ZIP bundle from a local/rendered session.
-- For authenticated pages, use an authenticated browser session, ask the user to run the app locally in the desired state, or ask for an exported HTML/asset bundle.
+- For dynamic pages or pages dependent on runtime state, first create a static HTML snapshot or ZIP bundle from a local/rendered session.
+- For login, permission, or inaccessible pages, first ask whether to import the current state or target state. If the user wants the target state, use an authenticated session, a local target state, or a user-provided HTML/resource bundle.
 - For missing remote images, fonts, SVGs, or other assets, bundle the assets locally when possible; otherwise report the missing resources explicitly.
 - For cross-origin, hotlinked, or blocked resources, prefer downloaded local copies in the ZIP; if unavailable, report the limitation rather than claiming fidelity.
 - For highly dynamic pages, capture the rendered DOM after the target state is visible, not just initial server HTML.
@@ -113,13 +134,18 @@ No generated-result validation is required; a successful `code_to_design` method
 
 - If `code_to_design` fails because the input is incomplete, create a smaller reproducible HTML snippet or a ZIP with all required files.
 - If URL-derived conversion is missing styles or assets, rebuild the ZIP with the missing CSS, images, fonts, SVGs, or rebased paths.
+- If conversion fails, the wrong input was passed, or the result clearly mismatches, tell the user the failure reason and next options. Do not switch to `pixso-design` / `apply_design` without user confirmation.
 
 ## Completion checklist
 
 Before final response, verify:
 
 - exactly one input type was used;
+- the `code_to_design` argument was final `htmlStr` or real `htmlBuffer`, not a placeholder, variable name, path, or temporary stub;
 - URL input, if any, was captured locally and converted into self-contained `htmlStr` or resource-bundled `htmlBuffer`;
+- if URL rendering showed login, permission, error, or empty state, user confirmation was obtained first;
+- resource collection was DOM / CSS source-aware, not broad-regex based; no non-visual URLs such as `a[href]` were downloaded;
 - required URL resources were packaged, inlined, or explicitly reported as unavailable;
 - no unrequested redesign was introduced;
+- if `code_to_design` failed or the result mismatched, `pixso-design` / `apply_design` was not used before user confirmation;
 - design-system alignment, if requested, was routed to `pixso-design-system`.
