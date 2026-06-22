@@ -11,6 +11,22 @@ Use Pixso MCP as the design execution surface, not as a code generator. The goal
 
 Pixso MCP tools can change over time. Always discover and follow the tool-provided resource guides or help output before assuming tool names, parameters, or supported operations.
 
+## Code-to-design Boundary
+
+If the user explicitly asks to convert a web page, URL, HTML, ZIP, static web artifact, or `code_to_design` output into Pixso, this skill must not automatically take over as reference-based reconstruction.
+
+- Route to `pixso-code-to-design` first for exact capture and conversion.
+- Capture blockers or `code_to_design` failures are conversion blockers; do not treat them as user consent to redesign.
+- Use this skill only after the user explicitly accepts an approximation, screenshot/description reconstruction, or Pixso design rebuild; state that it is not an exact conversion result.
+
+## Web Style Reference Workflow
+
+Use this skill when the user's intent is to reference a web page, borrow a web style, design in a site's visual style, or generate a new interface from a reference URL, rather than exactly converting the page into editable Pixso nodes.
+
+- Before `apply_design`, extract the reference page's design spec: layout/grid/spacing, color, type hierarchy, component shapes, radius, shadow, icon/image style, interaction states, and responsive behavior.
+- If the reference page is inaccessible or only shows login/permission/error/empty state, report the limit and ask whether to use the current state, a screenshot, a description, or another reference; do not invent the page style.
+- Turn the extracted spec into design constraints for the current task, then follow Basic UI Design Workflow; state that the result is a new design referencing the style, not an exact page conversion.
+
 ## Tool Map
 
 Use the available Pixso MCP tools in this order of intent:
@@ -27,16 +43,6 @@ Use the available Pixso MCP tools in this order of intent:
 | Do final visual review | `take_screenshot()` |
 
 Prefer component instances from the file or selected library over rebuilding standard controls with primitives. Query the component first, then instantiate with the returned real `guid`, `props`, and `descendants`.
-
-## Missing apply_design fallback
-
-For Pixso design creation or editing tasks, use this skill as the default route.
-
-If `apply_design` is not present in the current Pixso MCP tool list, do not ask the user for confirmation. Automatically route to `pixso-code-to-design` and use `code_to_design` as the fallback conversion path.
-
-The final response must report the fallback: `apply_design` was unavailable, so `code_to_design` was used for HTML-to-design conversion instead.
-
-When `apply_design` is available, do not bypass this skill or use `pixso-code-to-design` just for the convenience of generating HTML.
 
 ## Basic UI Design Workflow
 
