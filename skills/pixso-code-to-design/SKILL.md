@@ -2,6 +2,8 @@
 name: pixso-code-to-design
 description: "Use Pixso MCP `code_to_design` to convert raw HTML, URL-captured pages, or ZIP-bundled UI code into editable Pixso design nodes. For URL input, the local agent must capture the rendered HTML and package required resources into `htmlBuffer` before conversion. Inspect generated structure, check layout, verify screenshots, and make only targeted corrections unless the user requests redesign or design-system alignment."
 disable-model-invocation: false
+references:
+  - ./references/url-capture.md
 ---
 
 # Pixso Code to Design — Import HTML, URLs, or Bundled UI into Pixso
@@ -51,45 +53,25 @@ Do not pass URLs directly to `code_to_design`. Convert URL input into either a s
 - Use `htmlBuffer` for ZIP archive bytes.
 - Provide exactly one of `htmlStr` or `htmlBuffer`; never both.
 - For URL input, first capture or render the page locally; never assume Pixso can fetch the URL or its private/runtime resources.
-- For URL-derived pages with external CSS, images, fonts, SVGs, icons, scripts needed for rendered state, or other assets, default to a ZIP bundle and pass it as `htmlBuffer`.
+- For URL-derived pages, default to [references/url-capture.md](references/url-capture.md) and pass the resulting ZIP bundle as `htmlBuffer`.
 - Use `htmlStr` for URL-derived pages only when the captured HTML is self-contained, with critical CSS and required assets inlined or intentionally omitted with an explicit note.
-- Keep linked assets local to the bundle when possible. Remote, cross-origin, hotlinked, or authenticated assets may not resolve reliably.
+- Remote, cross-origin, hotlinked, or authenticated assets may not resolve reliably; report limitations or follow the URL capture fallback rules.
 - If the source is a live app page, produce or request a static HTML/asset export before calling `code_to_design`.
 
-## Pre-call input gate
+## URL input rules
 
-Before calling `code_to_design`, confirm that the argument is the final artifact, not a placeholder, variable name, file path, or summary. `htmlStr` must contain the target HTML and key page content; `htmlBuffer` must be real ZIP bytes. Do not pass `PLACEHOLDER`, `TODO`, an empty body, or a temporary stub that is not the user's target artifact. If the artifact is too large, use `htmlBuffer` instead of placeholder `htmlStr`. A simple test page or demo page is valid when the user explicitly wants that page imported.
+Before handling URL input, read and follow [references/url-capture.md](references/url-capture.md). That reference is authoritative for rendered-state confirmation, browser complete-save capture, resource fallback collection, pre-call input gates, and failure boundaries.
 
-## URL input workflow
+Default to the browser's native complete webpage save output, equivalent to Ctrl+S / Save Page As / Webpage Complete. Do not manually download every page resource by default. Only use DOM / CSS-aware visual resource collection when browser save is unavailable or clearly incomplete.
 
-When the user provides a URL, the local agent must turn it into a static conversion artifact before `code_to_design`.
+## Non-downgrade gates
 
-1. **Classify the URL.** Determine whether it is:
-   - a local dev URL such as `localhost`, `127.0.0.1`, or a LAN host;
-   - a public unauthenticated URL;
-   - an authenticated, session-dependent, or highly dynamic URL.
-2. **Render or fetch the page locally.** Prefer a browser/rendered DOM capture when client-side JavaScript affects the final UI. For dynamic pages, wait until the desired state is visible before capturing.
-3. **Confirm rendered state.** If the page shows login, permission, error, empty state, or the target content is not visible, ask whether to import the current state or provide the target state; do not call `code_to_design` before confirmation.
-4. **Capture the HTML entrypoint.** Use the rendered DOM when visual state matters, not just initial server HTML.
-5. **Collect required resources.** Include CSS stylesheets, critical inline styles, images, fonts, SVGs/icons, and other static assets required for visual fidelity.
-6. **Rebase references.** Rewrite HTML/CSS asset URLs to local relative paths inside the bundle.
-7. **Create a ZIP bundle.** Include the HTML entrypoint and all collected resources.
-8. **Call `code_to_design` with `htmlBuffer`.** Use `htmlStr` only for a fully self-contained capture.
+Follow these even when the reference file has not been loaded:
 
-## Resource collection rules
-
-For URL-to-design capture, collect only resources that affect the current rendered visual output. Do not discover resources with a broad regex over the full HTML; extract by DOM / CSS source type. URLs outside the allowlist are not downloaded, inlined, or bundled by default.
-
-Collect only:
-
-- `img[src]`, `img[srcset]`, and `picture source[srcset]`;
-- visible media posters and SVG/icon references required by rendered UI;
-- CSS `url(...)` values from inline styles and stylesheets;
-- `@font-face src`.
-
-Do not collect non-visual resources such as `a[href]`, `form[action]`, script/API/analytics/redirect URLs, meta/link preview data, plain-text URLs, or license/download/external document links.
-
-Every downloaded resource must record its usage source, such as `img.src`, `css.background-image`, or `font-face.src`. For any single resource larger than 2 MB, first confirm whether it is visible or required for visual fidelity; skip non-visual resources, and prefer bundling visually required resources as files instead of base64 inlining.
+- "Web page / URL / HTML / ZIP to Pixso" or explicit `code_to_design` means exact capture and conversion, not reference-based reconstruction.
+- Hard-to-capture URLs, login/permission/error/empty states, hash routes, iframes, anti-abuse controls, or missing assets are blockers or incomplete input; ask whether to import the current state or provide the target state.
+- If `code_to_design` fails, the wrong input was passed, or the result mismatches, only report the failure point and next options; do not switch to `pixso-design` / `apply_design` / approximate reconstruction without confirmation.
+- Do not pass placeholder HTML, temporary stubs, summaries, paths, or `PLACEHOLDER`; report the blocker when the final artifact cannot be prepared.
 
 ## Critical rules
 
@@ -113,7 +95,7 @@ Every downloaded resource must record its usage source, such as `img.src`, `css.
 
 1. **Identify the source artifact.** Determine whether the source is raw HTML, a URL, a static export, or a ZIP bundle.
 2. **Prepare the correct input.** Use `htmlStr` for raw/self-contained HTML or `htmlBuffer` for ZIP bytes.
-3. **For URL input, capture and package first.** Render or fetch the page locally, collect required resources, rebase references, and create an `htmlBuffer` ZIP unless the capture is fully self-contained.
+3. **For URL input, capture and package first.** Read and follow [references/url-capture.md](references/url-capture.md), preferring a browser complete-save artifact packaged as an `htmlBuffer` ZIP unless the capture is fully self-contained.
 4. **Call `code_to_design`.** Convert the artifact into Pixso nodes.
 5. **Report outcome.** State the source converted, how URL resources were captured or bundled when applicable, what was inspected, verification results, and any remaining differences.
 
@@ -123,18 +105,14 @@ No generated-result validation is required; a successful `code_to_design` method
 
 ## Fallbacks
 
-- For dynamic pages or pages dependent on runtime state, first create a static HTML snapshot or ZIP bundle from a local/rendered session.
-- For login, permission, or inaccessible pages, first ask whether to import the current state or target state. If the user wants the target state, use an authenticated session, a local target state, or a user-provided HTML/resource bundle.
-- For missing remote images, fonts, SVGs, or other assets, bundle the assets locally when possible; otherwise report the missing resources explicitly.
-- For cross-origin, hotlinked, or blocked resources, prefer downloaded local copies in the ZIP; if unavailable, report the limitation rather than claiming fidelity.
-- For highly dynamic pages, capture the rendered DOM after the target state is visible, not just initial server HTML.
+- For URL capture, login/permission/error states, browser save, resource fallback, and failure boundaries, follow [references/url-capture.md](references/url-capture.md).
 - For design-system conversion, complete the basic editable import first, then use `pixso-design-system` to bind variables, styles, or component instances.
 
 ## Error recovery
 
 - If `code_to_design` fails because the input is incomplete, create a smaller reproducible HTML snippet or a ZIP with all required files.
-- If URL-derived conversion is missing styles or assets, rebuild the ZIP with the missing CSS, images, fonts, SVGs, or rebased paths.
-- If conversion fails, the wrong input was passed, or the result clearly mismatches, tell the user the failure reason and next options. Do not switch to `pixso-design` / `apply_design` without user confirmation.
+- If URL-derived conversion is missing styles or assets, recapture or run resource fallback according to [references/url-capture.md](references/url-capture.md).
+- If conversion fails, the wrong input was passed, or the result clearly mismatches, follow the failure boundary in [references/url-capture.md](references/url-capture.md).
 
 ## Completion checklist
 
@@ -142,9 +120,7 @@ Before final response, verify:
 
 - exactly one input type was used;
 - the `code_to_design` argument was final `htmlStr` or real `htmlBuffer`, not a placeholder, variable name, path, or temporary stub;
-- URL input, if any, was captured locally and converted into self-contained `htmlStr` or resource-bundled `htmlBuffer`;
-- if URL rendering showed login, permission, error, or empty state, user confirmation was obtained first;
-- resource collection was DOM / CSS source-aware, not broad-regex based; no non-visual URLs such as `a[href]` were downloaded;
+- URL input, if any, followed [references/url-capture.md](references/url-capture.md);
 - required URL resources were packaged, inlined, or explicitly reported as unavailable;
 - no unrequested redesign was introduced;
 - if `code_to_design` failed or the result mismatched, `pixso-design` / `apply_design` was not used before user confirmation;
