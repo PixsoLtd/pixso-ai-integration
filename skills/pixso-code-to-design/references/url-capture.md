@@ -1,44 +1,47 @@
-# URL Capture Reference
+# URL 捕获参考
 
-Use this reference when `pixso-code-to-design` handles URL input. The goal is to turn the rendered page into a static artifact that `code_to_design` can consume while avoiding agent-side manual downloading of every page resource.
+本参考用于 `pixso-code-to-design` 处理 URL 输入：把已渲染页面转换成 `code_to_design` 可消费的静态产物，同时避免默认手工下载所有资源。
 
-## State Gate
+## 状态门禁
 
-After rendering the URL, first confirm whether the target content is visible. If the page shows a login, permission, error, empty state, or the target content is hidden by authentication, session, region, anti-abuse controls, or similar access limits, ask whether to import the current state or provide the target state. Do not call `code_to_design` before confirmation.
+渲染 URL 后，先确认目标内容是否可见。若出现登录、权限、错误、空状态，或目标内容因认证、会话、地区、风控、反爬、安全策略、iframe 等原因不可见，先询问用户导入当前状态、提供目标状态，还是允许近似重建；确认前不要调用 `code_to_design`。
 
-## Preferred Capture Method
+如果浏览器、运行时或安全策略禁止访问目标 URL，视为捕获阻塞。不要绕过策略或用近似 HTML 冒充捕获结果；报告阻塞点并给出可选下一步。
 
-Prefer the browser's native complete webpage save output, equivalent to Ctrl+S / Save Page As / Webpage Complete. Use the browser-rendered state confirmed by the user as the source of truth, saving the HTML entrypoint and the browser-generated resource directory.
+## 首选捕获方式
 
-Do not manually crawl or download every URL in the page by default.
+优先使用浏览器原生完整网页保存产物，等价于 Ctrl+S / 另存为完整网页 / Webpage Complete。以已确认的浏览器渲染状态为准，保存 HTML 入口和资源目录。不要默认手工抓取页面里的所有 URL。
 
-## Packaging Rules
+## 打包规则
 
-Package the browser-saved HTML entrypoint and resource directory into a ZIP, then pass it to `code_to_design` as `htmlBuffer`. Use `htmlStr` only when the capture is fully self-contained, or when external resources are intentionally omitted and that limitation is explicitly reported.
+将浏览器保存得到的 HTML 入口和资源目录打包成 ZIP，通过 `htmlBuffer` 传给 `code_to_design`。只有捕获结果已自包含，或有意省略外部资源并明确说明时，才使用 `htmlStr`。如果只能生成 MHTML，需确认下游支持；否则转换成 HTML + 本地资源目录，或报告限制。
 
-If the browser can only produce MHTML, use it directly only when the downstream converter supports MHTML. Otherwise convert it to HTML plus a local resource directory, or report the limitation.
+## 资源收集兜底
 
-## Resource Collection Fallback
+仅当浏览器完整保存不可用，或保存产物明显缺少视觉内容时，才手工收集资源。收集必须按 DOM / CSS 来源类型进行，不要用全 HTML 正则扫描 URL。
 
-Only collect resources manually when browser complete-save is unavailable or the saved artifact is clearly missing visual content. Fallback collection must be based on DOM / CSS source types; do not scan the full HTML with a broad URL regex.
+只收集会影响当前渲染视觉结果的资源：
 
-Collect only resources that affect the current rendered visual output:
+- `img[src]`、`img[srcset]`、`picture source[srcset]`；
+- 可见媒体封面，以及渲染 UI 所需的 SVG / 图标引用；
+- 内联样式和样式表里的 CSS `url(...)`；
+- `@font-face src`。
 
-- `img[src]`, `img[srcset]`, and `picture source[srcset]`;
-- visible media posters and SVG/icon references required by rendered UI;
-- CSS `url(...)` values from inline styles and stylesheets;
-- `@font-face src`.
+不要收集 `a[href]`、`form[action]`、脚本/API/埋点/跳转、meta/link 预览信息、纯文本 URL、许可证、下载链接或外部文档链接等非视觉资源。
 
-Do not collect non-visual resources such as `a[href]`, `form[action]`, script/API/analytics/redirect URLs, meta/link preview data, plain-text URLs, or license/download/external document links.
+每个下载资源都记录使用来源，例如 `img.src`、`css.background-image` 或 `font-face.src`。单个资源超过 2 MB 时，先确认是否可见或视觉必需。
 
-Every downloaded resource must record its usage source, such as `img.src`, `css.background-image`, or `font-face.src`. For any single resource larger than 2 MB, first confirm whether it is visible or required for visual fidelity. Skip non-visual resources, and prefer bundling visually required resources as files instead of base64 inlining.
+## 调用前输入门禁
 
-## Pre-Call Input Gate
+调用 `code_to_design` 前，确认传入的是最终产物，而不是占位符、变量名、文件路径或摘要。`htmlStr` 必须包含目标 HTML 和关键内容；`htmlBuffer` 必须是真实 ZIP 字节数组。禁止传入 `PLACEHOLDER`、`TODO`、空白 body 或非目标产物的临时 stub。
 
-Before calling `code_to_design`, confirm that the argument is the final artifact, not a placeholder, variable name, file path, or summary. `htmlStr` must contain the target HTML and key page content; `htmlBuffer` must be real ZIP bytes.
+## 失败边界
 
-Do not pass `PLACEHOLDER`, `TODO`, an empty body, or a temporary stub that is not the user's target artifact. If the artifact is too large, use `htmlBuffer` instead of placeholder `htmlStr`. A simple test page or demo page is valid when the user explicitly wants that page imported.
+如果 `code_to_design` 失败、误传输入或结果明显不匹配，先告知用户失败原因和可选下一步；未经用户确认，不要转用 `pixso-design` / `apply_design` 或手写近似 HTML 重新生成。
 
-## Failure Boundary
+可选下一步通常是：
 
-If `code_to_design` fails, the wrong input was passed, or the result clearly mismatches the target, first tell the user the failure reason and available next steps. Do not switch to `pixso-design` / `apply_design` without user confirmation.
+- 让用户提供可访问的静态导出或完整网页保存文件；
+- 让用户登录后提供已渲染页面的本地保存产物；
+- 重新尝试捕获当前可见状态；
+- 在用户明确同意后，改为生成近似还原版 Pixso 设计。

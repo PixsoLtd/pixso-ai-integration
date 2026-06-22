@@ -1,127 +1,77 @@
 ---
-name: pixso-code-to-design
-description: "Use Pixso MCP `code_to_design` to convert raw HTML, URL-captured pages, or ZIP-bundled UI code into editable Pixso design nodes. For URL input, the local agent must capture the rendered HTML and package required resources into `htmlBuffer` before conversion. Inspect generated structure, check layout, verify screenshots, and make only targeted corrections unless the user requests redesign or design-system alignment."
-disable-model-invocation: false
+id: pixso-code-to-design
+original: ../skills/pixso-code-to-design.md
 references:
   - ./references/url-capture.md
+title: Pixso 代码转设计
+description: "当用户要求把网页 URL、HTML、ZIP、静态 Web 产物或浏览器渲染页面导入/转换到 Pixso 时，必须先使用本技能，再调用 Pixso MCP `code_to_design`。触发词包括：网页转 Pixso、URL/HTML/ZIP 转 Pixso、code_to_design、导入网页到 Pixso。URL 输入必须先本地渲染/捕获并打包成真实 `htmlBuffer`；禁止直接传 URL，禁止未经确认改用近似重建。"
+language: zh-CN
 ---
 
-# Pixso Code to Design — Import HTML, URLs, or Bundled UI into Pixso
+# Pixso 代码转设计 - 将 HTML、URL 或打包 UI 导入 Pixso
 
-Use this skill when the user wants to import, paste, capture, push, or convert HTML, a web page URL, or bundled UI code into editable Pixso design nodes.
+当用户希望将 HTML、网页 URL、ZIP 包、静态 Web 产物或浏览器渲染页面导入、粘贴、捕获、推送或转换为可编辑 Pixso 设计节点时，使用本技能。
 
-## Activation gate
+## 首行动作门禁
 
-This skill is opt-in by default. Use it only when the user explicitly requests HTML / URL / ZIP / static web artifacts to be converted into Pixso designs.
+调用 Pixso MCP 工具前，先确认最终输入已准备好：原始/自包含 HTML 用 `htmlStr`，URL 或带资源页面默认用真实 ZIP 字节 `htmlBuffer`。输入是 URL 时，必须先阅读并遵循 [references/url-capture.md](references/url-capture.md)。
 
-Use this skill when:
+如遇登录、权限、地区、反爬、安全策略、iframe、hash 路由、资源缺失或目标内容不可见，先报告阻塞点并询问下一步。未经用户确认，不要把捕获失败降级为 `pixso-design` / `apply_design` / 手写 HTML / 近似重建。
 
-- the user asks to generate HTML and convert it into a Pixso design;
-- the user explicitly asks to use `code_to_design`;
-- the user asks to import HTML, URL capture output, ZIP bundles, or static web bundles;
-- the user asks to convert an existing web page or static HTML artifact into editable Pixso nodes.
+## 生效门禁
 
-Fallback exception:
+仅在用户明确要求 HTML / URL / ZIP / 静态 Web 产物转 Pixso，或明确要求 `code_to_design` 时使用本技能。
 
-- If the user asks to create or edit a Pixso design without requesting HTML conversion, use `pixso-design-editing` first.
-- Only when the current Pixso MCP tool list does not include `apply_design`, use this skill as the fallback path through `code_to_design`.
-- When using this fallback, explicitly report that `apply_design` was unavailable and the design was generated through HTML-to-design conversion instead.
+兜底例外：
 
-When `apply_design` is available, do not use this skill for general Pixso design creation, UI mockups, redesigns, homepage generation, app screen generation, or canvas editing.
+- 用户要求创建或编辑 Pixso 设计，但没有要求 HTML 转换时，优先使用 `pixso-design-editing`。
+- 只有当前 Pixso MCP 工具列表中没有 `apply_design` 时，才自动改用本技能，通过 `code_to_design` 作为兜底路径。
+- 使用兜底路径时，必须说明 `apply_design` 不可用，因此改用 HTML-to-design 转换。
 
-## Skill boundaries
+当 `apply_design` 可用时，不要将本技能用于通用 Pixso 设计创建、UI mockup、重新设计、首页生成、App 页面生成或画布编辑。
 
-Use this skill for:
+## 技能边界
 
-- raw HTML snippets passed directly to Pixso;
-- public, local, or otherwise accessible URLs that the local agent can fetch or render and package;
-- ZIP archives containing HTML, CSS, JavaScript, images, fonts, or other local assets;
-- static exports of app pages or components;
-- conversion after `code_to_design` creates editable Pixso nodes.
+处理原始 HTML、自包含 HTML、可捕获 URL、静态导出、ZIP 包，以及 `code_to_design` 后的定向修复。不要把 URL 直接传给 `code_to_design`。
 
-Do not pass URLs directly to `code_to_design`. Convert URL input into either a self-contained `htmlStr` or, by default when resources are involved, a ZIP bundle passed as `htmlBuffer`.
+## 输入规则
 
-## Required tools
+- `htmlStr` 和 `htmlBuffer` 二选一，不能同时提供。
+- URL 输入先本地渲染/捕获；不要假设 Pixso 能抓取 URL、认证或下载运行时资源。
+- URL 页面默认按 [references/url-capture.md](references/url-capture.md) 生成 ZIP 并通过 `htmlBuffer` 传入。
+- 只有捕获结果已自包含，或有意省略外部资源且已说明时，才对 URL 页面使用 `htmlStr`。
 
-- `code_to_design` for HTML or ZIP conversion.
-- Local agent/browser/runtime tools to fetch or render URL input and collect page resources before calling `code_to_design`.
-- `pixso-design-system` only when the user requests design-system alignment or token/component normalization.
+## URL 输入规则
 
-## Input rules
+处理 URL 输入时，先阅读 [references/url-capture.md](references/url-capture.md)。默认优先使用浏览器“完整网页保存”产物；只有保存不可用或明显不完整时，才按 reference 做 DOM / CSS 感知的视觉资源收集。
 
-- Use `htmlStr` for raw HTML strings.
-- Use `htmlBuffer` for ZIP archive bytes.
-- Provide exactly one of `htmlStr` or `htmlBuffer`; never both.
-- For URL input, first capture or render the page locally; never assume Pixso can fetch the URL or its private/runtime resources.
-- For URL-derived pages, default to [references/url-capture.md](references/url-capture.md) and pass the resulting ZIP bundle as `htmlBuffer`.
-- Use `htmlStr` for URL-derived pages only when the captured HTML is self-contained, with critical CSS and required assets inlined or intentionally omitted with an explicit note.
-- Remote, cross-origin, hotlinked, or authenticated assets may not resolve reliably; report limitations or follow the URL capture fallback rules.
-- If the source is a live app page, produce or request a static HTML/asset export before calling `code_to_design`.
+## 不可降级门禁
 
-## URL input rules
+- “网页 / URL / HTML / ZIP 转 Pixso”或明确 `code_to_design` 表示精确捕获和转换，不是参考式结构重建。
+- URL 难抓取、登录、权限、错误、空状态、hash 路由、iframe、反爬、安全策略或资源缺失时，视为阻塞或输入不完整。
+- `code_to_design` 失败、误传输入或结果不匹配时，只报告失败点和可选下一步；未经确认，不要改用其他工具或近似重建。
+- 不要传入占位 HTML、临时 stub、摘要、路径、空 body、`PLACEHOLDER` 或 `TODO`。
 
-Before handling URL input, read and follow [references/url-capture.md](references/url-capture.md). That reference is authoritative for rendered-state confirmation, browser complete-save capture, resource fallback collection, pre-call input gates, and failure boundaries.
+## 必须流程
 
-Default to the browser's native complete webpage save output, equivalent to Ctrl+S / Save Page As / Webpage Complete. Do not manually download every page resource by default. Only use DOM / CSS-aware visual resource collection when browser save is unavailable or clearly incomplete.
+1. **确认来源产物。** 判断来源是原始 HTML、URL、静态导出还是 ZIP 包。
+2. **准备正确输入。** 原始/自包含 HTML 使用 `htmlStr`，ZIP 字节使用 `htmlBuffer`。
+3. **URL 输入先按参考捕获并打包。** 阅读并遵循 [references/url-capture.md](references/url-capture.md)，优先使用浏览器完整保存产物创建 `htmlBuffer` ZIP，除非捕获结果已完全自包含。
+4. **调用 `code_to_design`。** 将最终产物转换为 Pixso 节点。
+5. **报告结果。** 说明转换来源；如果是 URL，说明资源如何捕获或打包；说明检查内容、验证结果和剩余差异。
 
-## Non-downgrade gates
+## 视觉标准
 
-Follow these even when the reference file has not been loaded:
+`code_to_design` 调用成功即可完成，但不要声称“视觉完全一致”，除非实际做过截图或结构验证。
 
-- "Web page / URL / HTML / ZIP to Pixso" or explicit `code_to_design` means exact capture and conversion, not reference-based reconstruction.
-- Hard-to-capture URLs, login/permission/error/empty states, hash routes, iframes, anti-abuse controls, or missing assets are blockers or incomplete input; ask whether to import the current state or provide the target state.
-- If `code_to_design` fails, the wrong input was passed, or the result mismatches, only report the failure point and next options; do not switch to `pixso-design` / `apply_design` / approximate reconstruction without confirmation.
-- Do not pass placeholder HTML, temporary stubs, summaries, paths, or `PLACEHOLDER`; report the blocker when the final artifact cannot be prepared.
+## 完成检查清单
 
-## Critical rules
+最终回复前确认：
 
-1. **Conversion is not verification.** A successful `code_to_design` call only means Pixso created nodes; it does not prove visual accuracy.
-2. **URL capture is the local agent's responsibility.** `code_to_design` consumes HTML or ZIP bytes; it should not be expected to crawl URLs, authenticate, execute app state, or download missing private resources.
-3. **Do not silently redesign.** Repair conversion defects, but do not change the design language unless the user asks.
-4. **Escalate design-system alignment.** If the user wants components, tokens, variables, or styles applied, follow `pixso-design-system` after the basic conversion is verified.
-
-## Hard gates — forbidden shortcuts
-
-- **Forbidden:** passing both `htmlStr` and `htmlBuffer`.
-- **Forbidden:** passing a URL directly to `code_to_design`.
-- **Forbidden:** assuming `code_to_design` captures arbitrary runtime app state by itself.
-- **Forbidden:** using initial server HTML for a JavaScript-rendered page when the rendered DOM is required for fidelity.
-- **Forbidden:** using `htmlStr` for a URL-derived page while leaving external CSS, image, font, SVG, or icon URLs unresolved, unless the limitation is intentional and explicitly reported.
-- **Forbidden:** claiming URL capture fidelity without packaging or inlining required resources.
-- **Forbidden:** broad visual redesign of the imported result unless requested.
-- **Forbidden:** automatically switching to `pixso-design` / `apply_design` to rebuild when `code_to_design` fails, the input is wrong, or the result clearly mismatches. First report the failure and ask whether to check the link/input or use Pixso design to generate an approximation.
-
-## Required workflow
-
-1. **Identify the source artifact.** Determine whether the source is raw HTML, a URL, a static export, or a ZIP bundle.
-2. **Prepare the correct input.** Use `htmlStr` for raw/self-contained HTML or `htmlBuffer` for ZIP bytes.
-3. **For URL input, capture and package first.** Read and follow [references/url-capture.md](references/url-capture.md), preferring a browser complete-save artifact packaged as an `htmlBuffer` ZIP unless the capture is fully self-contained.
-4. **Call `code_to_design`.** Convert the artifact into Pixso nodes.
-5. **Report outcome.** State the source converted, how URL resources were captured or bundled when applicable, what was inspected, verification results, and any remaining differences.
-
-## Visual criteria
-
-No generated-result validation is required; a successful `code_to_design` method call is sufficient to finish.
-
-## Fallbacks
-
-- For URL capture, login/permission/error states, browser save, resource fallback, and failure boundaries, follow [references/url-capture.md](references/url-capture.md).
-- For design-system conversion, complete the basic editable import first, then use `pixso-design-system` to bind variables, styles, or component instances.
-
-## Error recovery
-
-- If `code_to_design` fails because the input is incomplete, create a smaller reproducible HTML snippet or a ZIP with all required files.
-- If URL-derived conversion is missing styles or assets, recapture or run resource fallback according to [references/url-capture.md](references/url-capture.md).
-- If conversion fails, the wrong input was passed, or the result clearly mismatches, follow the failure boundary in [references/url-capture.md](references/url-capture.md).
-
-## Completion checklist
-
-Before final response, verify:
-
-- exactly one input type was used;
-- the `code_to_design` argument was final `htmlStr` or real `htmlBuffer`, not a placeholder, variable name, path, or temporary stub;
-- URL input, if any, followed [references/url-capture.md](references/url-capture.md);
-- required URL resources were packaged, inlined, or explicitly reported as unavailable;
-- no unrequested redesign was introduced;
-- if `code_to_design` failed or the result mismatched, `pixso-design` / `apply_design` was not used before user confirmation;
-- design-system alignment, if requested, was routed to `pixso-design-system`.
+- 只使用了一种输入类型；
+- 传给 `code_to_design` 的是最终 `htmlStr` 或真实 `htmlBuffer`，不是占位符、变量名、路径或临时 stub；
+- 如有 URL 输入，已阅读并遵循 [references/url-capture.md](references/url-capture.md)；
+- 所需 URL 资源已打包、内联，或明确报告不可用；
+- 未引入用户未要求的重设计；
+- `code_to_design` 失败或结果不匹配时，未在用户确认前改用 `pixso-design` / `apply_design`；
+- 如果请求了设计系统对齐，已路由到 `pixso-design-system`。
