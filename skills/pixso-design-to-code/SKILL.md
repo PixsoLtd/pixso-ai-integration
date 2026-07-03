@@ -2,19 +2,24 @@
 name: pixso-design-to-code
 description: "Use Pixso MCP `design_to_code` to convert Pixso design nodes, screens, components, or Pixso URLs into target-framework code, save generated files, localize assets, and run safe cleanup without changing visual output."
 disable-model-invocation: false
+references:
+  - ./references/cleanup.md
+  - ./references/html-framework-bridge.md
+  - ./references/resource-handling.md
 ---
 
 # Pixso Design to Code
 
-Use this skill to convert Pixso designs, screens, components, selected nodes, or Pixso URLs into frontend / client code.
+Use this skill when converting Pixso designs, pages, components, selected nodes, or Pixso URLs into frontend / client code.
 
 ## Required tools
 
 - Use `design_to_code` for React, Vue, HTML, Flutter, and ArkUI.
-- Use `pixso-resource-handling` after generation to save files, download assets / fonts, and replace temporary URLs.
+- If the target framework is not supported above, generate HTML with `design_to_code`, then convert it to the target framework by following `references/html-framework-bridge.md`; the converted target-framework output must still continue through cleanup.
+- After generation, follow `references/resource-handling.md` to save files, download image / font assets, and replace temporary URLs. Prefer its recommended cross-platform Node script, `references/resource-fetch.mjs`, for fetching code, downloading assets, and replacing URLs; fall back to its manual strategy only if the script fails.
 - Use `get_screenshot` after generation to understand visual context for safe cleanup.
 - Follow `references/cleanup.md` for class semanticization, DOM / CSS paired replacement, unused `id` cleanup, and cleanup audit.
-- Use `refine_generated_code` only when the user asks for responsive layout, CSS variables, Tailwind, DRY extraction, or project design-system alignment.
+- Use `refine_generated_code` only when the user explicitly asks for responsive layout, CSS variables, Tailwind, DRY extraction, or project design-system alignment.
 - Use `get_node_dsl` only as fallback.
 
 ## Input rules
@@ -26,15 +31,16 @@ Use this skill to convert Pixso designs, screens, components, selected nodes, or
 - For related pages / flows, pass multiple GUIDs together in one `design_to_code` call by default to preserve prototype links, navigation, and interaction context.
 - Split GUIDs into separate `design_to_code` calls only when the user explicitly asks for independent pages / screens, standalone outputs, or no cross-page relationships.
 - If the target framework is unclear, infer it from the project; if uncertain, ask or default to HTML and explain.
+- Do not pass unsupported framework names to `clientFrameworks`; use the HTML bridge instead.
 
 ## Required workflow
 
-1. **Confirm target and framework.** Determine GUIDs from URLs / selection and choose `react`, `vue`, `html`, `flutter`, or `arkui`.
-2. **Call `design_to_code`.** Pass `guids` as an array and set `clientFrameworks`. Use `get_variants` first only when the user asks for states, interactions, or variants.
+1. **Confirm target and framework.** Determine GUIDs from URLs / selection and decide whether the target is `react`, `vue`, `html`, `flutter`, or `arkui`.
+2. **Call `design_to_code`.** For supported frameworks, set the matching `clientFrameworks`; for unsupported frameworks, set `html` first, convert by following the HTML bridge rules, and treat the converted result as the object for later processing. Use `get_variants` first only when the user asks for states, interactions, or variants.
 3. **Build a page manifest.** For every generated page / code entry, track `guid`, output file, and status.
-4. **Process every output file.** Each file must complete: save -> assets -> `get_screenshot(guid)` -> Phase A cleanup -> Phase B cleanup -> verify.
+4. **Process every output file.** Each file must complete: save -> resource handling -> `get_screenshot(guid)` -> Phase A cleanup -> Phase B cleanup -> verification.
 5. **Fix necessary integration issues.** Fix asset paths, invalid code, or project-entry issues without rewriting or redesigning.
-6. **Refine only on request.** Do not apply optional refinement tags unless requested.
+6. **Refine only on request.** Do not apply optional refinement when the user did not ask for it.
 7. **Report per file.** Include output location, framework, resource status, cleanup audit, retained-item reasons, and known differences.
 
 ## Multi-page / multi-node gate
@@ -43,12 +49,15 @@ When there are multiple GUIDs or multiple generated code entries:
 
 - Each output file is an independent delivery unit.
 - One file reaching `delivered` does not complete the whole task.
-- Every file must run resource handling, screenshot capture or reported failure, Phase A, Phase B, and verification.
+- Every file must complete resource handling, screenshot capture or reported failure, Phase A, Phase B, and verification.
 - Final response must include a per-file cleanup audit table, not only a global summary.
 
-## Hard gates — forbidden shortcuts
+## Hard gates - forbidden shortcuts
 
 - **Forbidden:** using `get_node_dsl` when `design_to_code` supports the requested framework.
+- **Forbidden:** passing unsupported framework names to `clientFrameworks`.
+- **Forbidden:** skipping `references/html-framework-bridge.md` during HTML bridge work, or using the bridge as an excuse to redesign, refactor, or abstract components.
+- **Forbidden:** delivering target-framework code immediately after HTML bridge conversion without continuing through resource handling, screenshot context, Phase A cleanup, and Phase B cleanup.
 - **Forbidden:** passing full Pixso URLs or a string `guids` value to `design_to_code`.
 - **Forbidden:** processing only the first GUID when multiple URLs / `item-id` values were provided.
 - **Forbidden:** splitting related pages by default when it may lose prototype links, navigation, or interaction context.
@@ -58,7 +67,7 @@ When there are multiple GUIDs or multiple generated code entries:
 - **Forbidden:** deleting `id` values still referenced by CSS, JavaScript, tests, anchors, ARIA, or `label for`.
 - **Forbidden:** changing visual appearance, layout hierarchy, interaction semantics, CSS declarations, selector priority, state styles, or responsive behavior during cleanup.
 - **Forbidden:** changing class token counts during cleanup. Each existing class token may only be renamed to one replacement token; do not turn one class into base + modifier tokens.
-- **Forbidden:** adding inferred state / modifier classes such as `active`, `selected`, `current`, `disabled`, `open`, or `is-*` unless already present or explicitly requested.
+- **Forbidden:** adding inferred state / modifier classes such as `active`, `selected`, `current`, `disabled`, `open`, or `is-*` unless already present in the generated code or explicitly requested by the user.
 - **Forbidden:** introducing unrequested dependencies, CSS frameworks, component libraries, design systems, naming systems, broad refactors, or refinement tags.
 - **Forbidden:** reporting only one global cleanup audit when multiple output files were generated.
 
@@ -76,6 +85,7 @@ Before final response, confirm:
 
 - target GUIDs / current selection and target framework were identified;
 - `design_to_code` was used with array `guids`, or fallback was explained;
+- if the target framework is unsupported by `design_to_code`, HTML bridge conversion was completed 1:1 by following `references/html-framework-bridge.md`, and the converted target-framework output continued through cleanup;
 - all generated files were saved or returned as requested;
 - assets were localized, or missing assets were reported;
 - each output file got screenshot context or a stated screenshot failure;

@@ -1,8 +1,9 @@
 {
-  "name": "pixso",
-  "description": "Pixso AI integration for design-to-code, code-to-design, design editing, assets, variables, styles, components, and visual verification.",
-  "version": "1.0.2",
-  "author": {
-    "name": "Pixso"
-  }
+    "name":  "pixso",
+    "description":  "Pixso AI integration for design-to-code, code-to-design, design editing, assets, variables, styles, components, and visual verification.",
+    "version":  "1.0.8",
+    "author":  {
+                   "name":  "Pixso"
+               },
+    "commands":  "./commands/*.md"
 }

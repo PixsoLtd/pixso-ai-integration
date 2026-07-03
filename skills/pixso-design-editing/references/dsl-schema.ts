@@ -40,11 +40,11 @@ export type BlendMode =
   | "normal"
   | "darken"
   | "multiply"
-  | "linear_burn" // 加暗
+  | "linear_burn" // darken
   | "color_burn"
   | "lighten"
   | "screen"
-  | "linear_dodge" // 加亮
+  | "linear_dodge" // lighten
   | "color_dodge"
   | "overlay"
   | "soft_light"
@@ -135,7 +135,7 @@ export interface ImageFillPaint {
     shadows?: number;
     temperature?: number;
     tint?: number;
-    vibrance?: number; // 饱和度
+    vibrance?: number; // saturation
   };
 }
 

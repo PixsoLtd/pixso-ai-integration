@@ -37,7 +37,7 @@ Before calling `code_to_design`, confirm that the argument is the final artifact
 
 ## Failure Boundary
 
-If `code_to_design` fails, the wrong input was passed, or the result clearly mismatches the target, first tell the user the failure reason and available next steps. Do not switch to `pixso-design`, `apply_design`, or hand-written approximate HTML without user confirmation.
+If `code_to_design` fails, the wrong input was passed, or the result clearly mismatches the target, first tell the user the failure reason and available next steps. Do not switch to `pixso-design-editing`, `apply_design`, or hand-written approximate HTML without user confirmation.
 
 Typical next options:
 
