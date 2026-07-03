@@ -14,7 +14,7 @@ Use this skill when the user wants to import, paste, capture, push, or convert H
 
 Before calling any Pixso MCP tool, confirm the final input is ready: use `htmlStr` for raw or self-contained HTML, and use real ZIP bytes in `htmlBuffer` for URLs or pages with resources. For URL input, first read and follow [references/url-capture.md](references/url-capture.md).
 
-If login, permissions, region limits, anti-abuse controls, security policy, iframes, hash routes, missing resources, or hidden target content block capture, report the blocker and ask for the next step. Do not downgrade failed capture to `pixso-design`, `apply_design`, hand-written HTML, or approximate reconstruction without user confirmation.
+If login, permissions, region limits, anti-abuse controls, security policy, iframes, hash routes, missing resources, or hidden target content block capture, report the blocker and ask for the next step. Do not downgrade failed capture to `pixso-design-editing`, `apply_design`, hand-written HTML, or approximate reconstruction without user confirmation.
 
 ## Activation Gate
 
@@ -71,5 +71,5 @@ Before the final response, verify:
 - URL input, if any, followed [references/url-capture.md](references/url-capture.md);
 - required URL resources were packaged, inlined, or explicitly reported unavailable;
 - no unrequested redesign was introduced;
-- if `code_to_design` failed or the result mismatched, `pixso-design` / `apply_design` was not used before user confirmation;
-- design-system alignment, if requested, was routed to `pixso-design-system`.
+- if `code_to_design` failed or the result mismatched, `pixso-design-editing` / `apply_design` was not used before user confirmation;
+- design-system alignment, if requested, was handled through `pixso-design-editing` or the current project design-system flow.

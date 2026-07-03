@@ -10,7 +10,7 @@ Use after `design_to_code` and asset localization. Only clean generated class / 
 - Replace class names in DOM / templates / JSX and CSS / style selectors together.
 - Preserve layout, size, color, font, spacing, hierarchy, images, icons, radius, shadows, state styles, and responsive behavior.
 
-## Phase A — mechanical cleanup, do not skip
+## Phase A - mechanical cleanup, do not skip
 
 1. Scan temporary asset URLs: `localhost`, short-lived Pixso export URLs, or other known temporary asset paths; replace what can be localized and explain what cannot.
 2. Scan Pixso node-style `id` values such as `id="17_332"` and `id="6_24"`.
@@ -18,7 +18,7 @@ Use after `design_to_code` and asset localization. Only clean generated class / 
 4. Scan Pixso node-style class leftovers such as `frame-*`, `vector-*`, `group-*`, `rectangle-*`, `text-*`, and `paragraph-*`.
 5. Phase A must produce audit results: found count, removed / replaced count, retained count, and retained-item reasons.
 
-## Phase B — semantic cleanup
+## Phase B - semantic cleanup
 
 1. Scan all DOM / templates / JSX for `class`, `className`, dynamic classes, and CSS Modules references.
 2. Scan CSS / style / scoped style / CSS Modules selectors, including media queries, pseudo-classes, pseudo-elements, and compound selectors.
