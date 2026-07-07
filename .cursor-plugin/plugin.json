@@ -1,7 +1,7 @@
 {
     "name":  "pixso",
     "displayName":  "Pixso",
-    "version":  "1.0.9",
+    "version":  "1.0.10",
     "description":  "Pixso AI integration for design-to-code, code-to-design, design editing, assets, variables, styles, components, and visual verification.",
     "author":  {
                    "name":  "Pixso"

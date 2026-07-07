@@ -228,6 +228,7 @@ interface PropsConfig {
   filter?: string[];
   showTrueValue?: boolean;
   customProps?: Record<string, string>;
+  mappings?: Record<string, PropMappingConfig>;
 }
 ```
 
@@ -250,20 +251,34 @@ If the design Button has variant props `size=large, type=primary`, Vue output is
 
 ### `filter`
 
-Add default or unwanted values to the filter list. Common defaults are `"md"`, `"default"`, and `"false"`.
+`props.filter` filters **variant values**, not prop keys. It runs **before mappings** and applies globally to **all variant props**.
+
+Common defaults are `"md"`, `"default"`, and `"false"`.
 
 ```json
 {
   "Button": {
     "name": "el-button",
     "props": {
-      "filter": ["md", "default", "normal"]
+      "filter": ["md", "default", "false"]
     }
   }
 }
 ```
 
 Variant `size=md` is filtered out and not emitted.
+
+Use it for cross-prop generic raw defaults. Do not use it for prop-specific values; suppress those through mappings with an empty output value.
+
+#### Empty-value suppression in mappings
+
+After mappings are applied, if the output key or output value is `""`, that prop is not emitted.
+
+| Form | Meaning |
+|------|---------|
+| `"DocTag": ""` | Suppress the whole variant axis |
+| `{ "name": "" }` | Suppress the whole variant axis |
+| `values: { "secondary": "" }` | Suppress only that value |
 
 ### `showTrueValue`
 
@@ -294,6 +309,44 @@ Use `customProps` for fixed props or values from `object` aggregation. A value i
 
 - `items` references the child object array named `tabs`.
 - `type` is not in `"{...}"` form, so it outputs directly as `type="card"`.
+
+### `mappings`
+
+Map design variant prop names or enum values to the key/value shape accepted by the target UI library. The outer key is the source prop name (`aliasName || name`) and is **case-sensitive**, unlike component-name matching.
+
+```json
+{
+  "Button": {
+    "name": "el-button",
+    "props": {
+      "mappings": {
+        "modelValue": "value",
+        "Type": {
+          "name": "type",
+          "values": {
+            "Primary": "primary",
+            "Success": "success"
+          }
+        },
+        "size": {
+          "Large": "lg",
+          "Small": "sm"
+        }
+      }
+    }
+  }
+}
+```
+
+| Form | Meaning |
+|---|---|
+| `"modelValue": "value"` | Rename prop key only |
+| `"size": { "Large": "lg" }` | Map values only, like `attr.mappings` |
+| `"Type": { "name": "type", "values": {...} }` | Rename key and map values |
+| `"DocTag": ""` or `{ "name": "" }` | Suppress the whole variant axis |
+| `values: { "secondary": "" }` | Suppress only that value |
+
+Processing order: `filter` (before mapping, global value filter) -> `mappings` -> suppress when output key/value is `""`. Values without a mapping are preserved, and props without a configured mapping are emitted as-is.
 
 ## text
 
@@ -950,8 +1003,38 @@ Use each property's `filter` to skip default values, such as `fontWeight: 400`.
   },
   "Button": {
     "name": "el-button",
-    "props": { "filter": ["md", "default"] },
-    "text": { "nodeName": "_text" },
+    "props": {
+      "showTrueValue": true,
+      "mappings": {
+        "Type": {
+          "name": "type",
+          "values": {
+            "primary": "primary",
+            "secondary": ""
+          }
+        },
+        "Size": {
+          "name": "size",
+          "values": {
+            "large": "large",
+            "small": "small",
+            "medium": ""
+          }
+        },
+        "State": {
+          "name": "disabled",
+          "values": {
+            "disabled": "true",
+            "normal": "",
+            "hover or press": ""
+          }
+        }
+      }
+    },
+    "text": [
+      { "nodeName": "_text" },
+      { "nodeName": "text" }
+    ],
     "icon": {
       "nodeName": { "name": "icon", "deepFind": true },
       "attrName": "icon"
@@ -1040,6 +1123,7 @@ Use each property's `filter` to skip default values, such as `fontWeight: 400`.
 | `props.filter` | `string[]` | Filtered prop values. | `["md", "default"]` |
 | `props.showTrueValue` | `boolean` | Explicit boolean `true` output. | `true` |
 | `props.customProps` | `Record<string, string>` | Custom prop bindings. | `{ "items": "{tabs}" }` |
+| `props.mappings` | `Record<string, PropMappingConfig>` | Variant key/value mappings. | `{ "Type": { "name": "type", "values": {...} } }` |
 | `text` | `TextConfig | TextConfig[]` | Text extraction. | `{ "nodeName": "_text" }` |
 | `text.nodeName` | `string` | Target text layer name. | `"_text"` |
 | `text.textAttr` | `string` | Output prop name. | `"placeholder"` |
