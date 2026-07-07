@@ -171,6 +171,56 @@ Button
 - Use `showTrueValue: true` only when the target framework requires explicit boolean values.
 - Use `customProps` for fixed props or object aggregation results.
 
+## 03.1. props.mappings: map variant prop keys/values
+
+### Goal
+
+Map variant keys/values to code output values when design prop names or enum values differ from the UI library API.
+
+### Field
+
+`props.mappings`
+
+### Reference layers
+
+```text
+button                     component-set instance, variant Type=Primary
+```
+
+### Reference config
+
+```json
+{
+  "button": {
+    "name": "el-button",
+    "props": {
+      "mappings": {
+        "Type": {
+          "name": "type",
+          "values": {
+            "Primary": "primary",
+            "Success": "success"
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+### Expected output
+
+```vue
+<el-button type="primary" />
+```
+
+### Usage notes
+
+- The outer mapping key must equal `aliasName || name` and is case-sensitive; if the design prop is `Type`, write `"Type"`.
+- `"Type": "type"` renames only the prop key and leaves the value unchanged.
+- `"type": { "Primary": "primary" }` maps only values, similar to `attr.mappings`.
+- `filter` runs before mappings; unmapped values are preserved.
+
 ## 04. filter: skip default values or decorative layers
 
 ### Goal
@@ -771,16 +821,17 @@ Use this order before writing config:
 1. Need to change the output tag: use `name`.
 2. Need to read component instance variants: use `props`.
 3. Need to filter default variant values: use `props.filter`.
-4. Need to filter decorative child layers: use `traverse.filter`.
-5. Need to read text content: use `text.nodeName`.
-6. Need to turn text into a prop: add `textAttr`.
-7. Need to read an icon child: use `icon`.
-8. Icon is nested inside multiple frames: use `deepFind` only on `icon.nodeName`.
-9. Need to generate props from visual styles: use `attr.valueFrom`.
-10. Need a container to continue parsing children: use `traverse`.
-11. Need to aggregate child components into arrays: use `object`; parent also needs `traverse`.
-12. Need table data: use `tableData`; columns use component-set variants to provide `prop`.
-13. Need to output size or color for `@` icons: use `@icons`, not normal component rules.
+4. Need to map variant prop names or enum values to the target API: use `props.mappings`.
+5. Need to filter decorative child layers: use `traverse.filter`.
+6. Need to read text content: use `text.nodeName`.
+7. Need to turn text into a prop: add `textAttr`.
+8. Need to read an icon child: use `icon`.
+9. Icon is nested inside multiple frames: use `deepFind` only on `icon.nodeName`.
+10. Need to generate props from visual styles: use `attr.valueFrom`.
+11. Need a container to continue parsing children: use `traverse`.
+12. Need to aggregate child components into arrays: use `object`; parent also needs `traverse`.
+13. Need table data: use `tableData`; columns use component-set variants to provide `prop`.
+14. Need to output size or color for `@` icons: use `@icons`, not normal component rules.
 
 ## Common Anti-Patterns
 
