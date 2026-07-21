@@ -186,8 +186,10 @@ get_node_dsl({ "guid": "59194:149" })
 ```
 
 - Parse JSON from `result.content[0].text` when using an injected MCP tool. The fallback script already parses this text and prints JSON.
-- Expect a DSL document fragment, not always a bare node. Inspect `pixTreeNodes[0]` and, when present, `pixComponentTreeDslNodes[0]`; supporting maps such as `localStyleMap`, `variableMap`, and `svgGuidInfo` may appear at the same top level.
-- Use `childNode` entries and child layer names to decide stable `text.nodeName`, `icon.nodeName`, slot/traverse rules, `object` mappings, and `tableData` structure.
+- Expect compact DSL. Treat `roots` as the requested node tree and recursively inspect `children`; `refsIndex` contains lightweight variable, style, component-set, vector, and image references rather than complete definitions.
+- For component instances, follow `componentRef` to the component or concrete variant, use `componentSetRef` for the containing set, align instance children with definition nodes through `componentNodeRef`, and read instance differences from `override`. Query required `componentRef` values recursively instead of inferring structure from legacy DSL fields.
+- Use real layer names under `roots` / `children`, together with `componentNodeRef` and `override` when needed, to decide stable `text.nodeName`, `icon.nodeName`, slot/traverse rules, `object` mappings, and `tableData` structure.
+- Resolve variable, style, and asset definitions through tools using IDs from `refsIndex`. Do not treat compact DSL as a complete raw file or call default/inherited field omission data loss.
 - Use visual properties from node DSL for `attr` only when they map cleanly to documented target component prop semantics.
 - Do not call `get_node_dsl` for every raw component unless needed; sample enough variants to confirm layer names and state-dependent structure.
 - If one `node_id` fails, try another `nodeIds` entry from the same family. If all fail, put that family in the manual completion list instead of fabricating rules.
