@@ -20,7 +20,8 @@ Use this skill when converting Pixso designs, pages, components, selected nodes,
 - Use `get_screenshot` after generation to understand visual context for safe cleanup.
 - Follow `references/cleanup.md` for class semanticization, DOM / CSS paired replacement, unused `id` cleanup, and cleanup audit.
 - Use `refine_generated_code` only when the user explicitly asks for responsive layout, CSS variables, Tailwind, DRY extraction, or project design-system alignment.
-- Use `get_node_dsl` only as fallback.
+- Keep `design_to_code` as the default entry point. Enter `pixso-read-dsl` directly for explicit DSL/reference/full-data requests. If `design_to_code` genuinely fails or returns output that cannot be used, fall back to `pixso-read-dsl` and combine node DSL with `get_screenshot` visual context for code generation and verification.
+- Compact DSL is not raw Kiwi, decoded JSON, or a complete design-file snapshot. Do not treat it as a full raw input to the code-generation pipeline.
 
 ## Input rules
 
@@ -36,7 +37,7 @@ Use this skill when converting Pixso designs, pages, components, selected nodes,
 ## Required workflow
 
 1. **Confirm target and framework.** Determine GUIDs from URLs / selection and decide whether the target is `react`, `vue`, `html`, `flutter`, or `arkui`.
-2. **Call `design_to_code`.** For supported frameworks, set the matching `clientFrameworks`; for unsupported frameworks, set `html` first, convert by following the HTML bridge rules, and treat the converted result as the object for later processing. Use `get_variants` first only when the user asks for states, interactions, or variants.
+2. **Call `design_to_code`.** For supported frameworks, set the matching `clientFrameworks`; for unsupported frameworks, set `html` first and convert by following the HTML bridge rules. Use `get_variants` first only when the user asks for states, interactions, or variants. If the call genuinely fails or its result cannot be used, record the reason, use `pixso-read-dsl` to retrieve node structure and referenced data, call `get_screenshot(guid)` for visual context, and generate code from both sources. Continue fallback output through the same resource, cleanup, and verification workflow.
 3. **Build a page manifest.** For every generated page / code entry, track `guid`, output file, and status.
 4. **Process every output file.** Each file must complete: save -> resource handling -> `get_screenshot(guid)` -> Phase A cleanup -> Phase B cleanup -> verification.
 5. **Fix necessary integration issues.** Fix asset paths, invalid code, or project-entry issues without rewriting or redesigning.
@@ -54,7 +55,7 @@ When there are multiple GUIDs or multiple generated code entries:
 
 ## Hard gates - forbidden shortcuts
 
-- **Forbidden:** using `get_node_dsl` when `design_to_code` supports the requested framework.
+- **Forbidden:** using `get_node_dsl` for ordinary code generation before actually calling `design_to_code` or confirming that its result is unusable. Explicit DSL/reference requests are exempt; a post-failure code-generation fallback must enter `pixso-read-dsl`.
 - **Forbidden:** passing unsupported framework names to `clientFrameworks`.
 - **Forbidden:** skipping `references/html-framework-bridge.md` during HTML bridge work, or using the bridge as an excuse to redesign, refactor, or abstract components.
 - **Forbidden:** delivering target-framework code immediately after HTML bridge conversion without continuing through resource handling, screenshot context, Phase A cleanup, and Phase B cleanup.
@@ -75,6 +76,7 @@ When there are multiple GUIDs or multiple generated code entries:
 
 - If a Pixso URL lacks `item-id`, request a node-specific URL or confirm current selection.
 - If `design_to_code` fails because a GUID is invalid, re-check the URL `item-id` or current selection.
+- If parameters and GUIDs are correct but `design_to_code` still fails or returns unusable output, use `pixso-read-dsl` to retrieve node DSL and required references, then call `get_screenshot(guid)`. Use DSL for structural/layout constraints and the screenshot for visual verification, and explicitly report that fallback was used.
 - If `get_screenshot` fails, continue static cleanup where safe and report that visual context was unavailable.
 - If asset downloads fail, keep reproducible details and list missing assets explicitly.
 - If the generated structure does not fit the project, make the smallest necessary adaptation and report it.
@@ -84,7 +86,7 @@ When there are multiple GUIDs or multiple generated code entries:
 Before final response, confirm:
 
 - target GUIDs / current selection and target framework were identified;
-- `design_to_code` was used with array `guids`, or fallback was explained;
+- `design_to_code` was called with array `guids`; if it failed or returned unusable output, the reason was recorded and `pixso-read-dsl` node DSL, referenced data, and screenshot context were used for fallback generation and verification;
 - if the target framework is unsupported by `design_to_code`, HTML bridge conversion was completed 1:1 by following `references/html-framework-bridge.md`, and the converted target-framework output continued through cleanup;
 - all generated files were saved or returned as requested;
 - assets were localized, or missing assets were reported;
