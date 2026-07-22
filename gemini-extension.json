@@ -1,6 +1,6 @@
 {
   "name": "Pixso",
-  "version": "1.0.9",
+  "version": "1.0.11",
   "description": "Integrate Pixso into your workflow: generate code from designs, import code into editable designs, edit Pixso files, manage resources, and verify visual fidelity.",
   "mcpServers": {
     "pixso": {

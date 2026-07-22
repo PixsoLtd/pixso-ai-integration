@@ -29,6 +29,7 @@ Before generating any component config, verify Pixso MCP connectivity and fetch 
 Prefer injected Pixso MCP tools when available:
 
 ```text
+read_component_config_data({})
 get_all_components({})
 get_node_dsl({ "guid": "<node_id>" })
 ```
@@ -47,22 +48,37 @@ node --experimental-strip-types .\skills\pixso-component-config\scripts\fetch-pi
 
 Default MCP endpoint: `http://127.0.0.1:3667/mcp`. If Pixso uses another port, pass `--mcp-url`.
 
-If Pixso MCP cannot connect, or `get_all_components` / `get_node_dsl` fails, stop. Do not continue from cached data, stale output, inferred component names, or manual guesses. Ask the user to open the current Pixso desktop file, enable MCP, confirm endpoint/port, and retry.
+If Pixso MCP cannot connect, or a required MCP call for the current workflow (`read_component_config_data`, or `get_all_components` / `get_node_dsl` in the fallback path) fails, stop. Do not continue from cached data, stale output, inferred component names, or manual guesses. Ask the user to open the current Pixso desktop file, enable MCP, confirm endpoint/port, and retry.
+
+## Component Config Data Interface
+
+When generating component config, prefer calling `read_component_config_data({})` to fetch design-side component data required for config generation from the current file. This interface is the dedicated entry point for component config.
+
+Usage rules:
+
+- Treat each returned array item as a component family that can receive one config rule; variants in a `componentSet` live under the item's `children`, so do not use variant names as component-family keys.
+- Prefer the item's `key` as the component parser config key; use `name` only as the original design-side name and manual review aid.
+- Use `propDefMap` to identify design-side variant / props axes, then combine those facts with target component-library props documentation to generate `props.mappings`.
+- Use `attr` as visual-attribute candidates; generate `attr` config only when the visual attribute clearly maps to target component prop semantics.
+- Use `subLayers` as a child-layer candidate summary. First-level `subLayers` define the valid scope for `traverse.filter`; deeper `children` can help identify `text.nodeName`, icon candidates, `object`, and `tableData` structure.
+- `subLayers.type` is the raw DSL `node.type`; do not infer slots or icons from `type` alone. Slot / icon rules must be confirmed from layer names, the target code component API, and representative node DSL when needed.
+- For large component sets, use this interface result first for candidate filtering and summary judgment; do not call `get_node_dsl` for every variant. Only sample representative node DSL when the interface data is insufficient to confirm complex fields.
+- If `read_component_config_data` is unavailable in the current environment, or the interface response lacks required fields, fall back to the `get_all_components` + `get_node_dsl` / fallback script workflow.
 
 ## Required References
 
 Read the bundled references as needed:
 
 - Read [references/component-parser-json.md](references/component-parser-json.md) for every config generation task to confirm schema and safe defaults.
-- Read [references/component-parsers.md](references/component-parsers.md) when generating or validating complex fields such as `icon.childComponent`, `attr`, `traverse`, `object`, `tableData`, `@icons`, or `@text`.
+- Read [references/component-parsers.md](references/component-parsers.md) when generating or validating complex fields such as `props.mappings`, `icon.childComponent`, `attr`, `traverse`, `object`, `tableData`, `@icons`, or `@text`.
 - Read [references/component-config-tutorial.md](references/component-config-tutorial.md) only when examples are useful for explaining, debugging, or authoring a complex parser rule.
 
 ## Required Workflow
 
 1. **Resolve the target code resource.** Choose local component library mode or open source component library mode.
 2. **Gather code facts.** Read the user's plan, docs, `package.json`, exports, component directories, props definitions, and style entry. Do not guess imports when a repo is available.
-3. **Fetch Pixso components.** Use `get_all_components` or the fallback script to get raw components and a component-family summary.
-4. **Sample node DSL.** For component families that need `text`, `icon`, `attr`, `traverse`, `object`, or `tableData`, inspect representative `nodeIds` with `get_node_dsl`; `get_all_components` only includes metadata, not full child layers.
+3. **Fetch component config data.** Prefer `read_component_config_data({})` to get component families, design-side props, attr, and child-layer candidates; only use `get_all_components` or the fallback script to get raw components and a component-family summary when that interface is unavailable.
+4. **Sample node DSL as needed.** For `text`, `icon`, `attr`, `traverse`, `object`, or `tableData` fields that the interface data still cannot confirm, inspect representative `nodeIds` with `get_node_dsl`; do not make DSL sampling the default full workflow.
 5. **Normalize component families.** Use stable family names as config keys, not variant sample names.
 6. **Generate JSON.** Output the component parser object directly. Do not wrap it in `codeOptions` unless the user explicitly asks.
 7. **Report manual completion items.** Put private, helper, legacy, unknown, and unverified families into a "Manual Completion List".
@@ -71,6 +87,7 @@ Read the bundled references as needed:
 ## Component Family Normalization
 
 - When using the fallback script with `--summary-only`, use `families[].name` as the processed component config key.
+- When using `read_component_config_data`, use the returned item's `key` as the component config key candidate.
 - Use `families[].rawNames` and `families[].keySources` only for review and manual correction; do not use raw variant names or `sampleNames` as keys.
 - Prefer non-empty `aliasName`.
 - Otherwise use `containing_frame.containingStateGroup.name`.
@@ -112,10 +129,55 @@ If local source or documentation does not establish package, import, tag, or pro
 - Add `__mainImports__` and `__package__` only when the target project needs them or the user asks for a complete installable config.
 - Add `@icons` only if icon-prefixed layers or icon components are present.
 - For each stable component family, emit only verified `name`, `props`, `text`, `icon`, `attr`, `traverse`, `object`, or `tableData` fields.
-- Do not fabricate `nodeName`, visual `attr.mappings`, or imports.
+- When Pixso variant prop names or enum values differ from the target component library API, use `props.mappings` for key/value mapping. Mapping facts must come from node DSL `propRefMap` variants and target library prop docs; never guess.
+- Do not fabricate `nodeName`, visual `attr.mappings`, `props.mappings`, or imports.
+
+## props.mappings Rules
+
+Use when design variant **prop names** or **enum values** differ from the target UI library API. The engine reads `aliasName || name` and `aliasValue || value`. **Outer mapping keys must match the source prop name exactly (case-sensitive)**, unlike component-family key normalization.
+
+| Form | Meaning |
+|------|---------|
+| `"modelValue": "value"` | Rename prop key only |
+| `"type": { "Primary": "primary" }` | Map values only (like `attr.mappings`) |
+| `"Type": { "name": "type", "values": { "Primary": "primary" } }` | Rename key and map values |
+| `"DocTag": ""` or `{ "name": "" }` | Suppress entire variant axis (no output for any value) |
+| `"values": { "secondary": "" }` | Suppress only that mapped value |
+
+Example (design prop `Type`, value `Primary` to output `type="primary"`; `secondary` suppressed):
+
+```json
+{
+  "button": {
+    "name": "el-button",
+    "props": {
+      "mappings": {
+        "Type": {
+          "name": "type",
+          "values": {
+            "Primary": "primary",
+            "Success": "success",
+            "secondary": ""
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+When generating:
+
+- If the variant already has `aliasName: "type"`, use outer key `"type"`, not `"Type"`.
+- Value mapping keys must match **`aliasValue || value`** as read from DSL; if alias already yields `primary`, do not use `"Primary"`.
+- Use **`props.filter` only for cross-prop generic values** (`md`, `default`, `false`). Do not put prop-specific defaults (for example, `secondary`, `medium`, `normal`) in filter.
+- To suppress a **specific value**, map it to `""` in `values`. To suppress an **entire variant axis**, use `"PropName": ""` or `{ "name": "" }`.
+- `props.filter` runs **before** mappings; empty-string suppress runs **after** mappings.
+- Emit mappings only when variant names/values and target prop semantics are confirmed from node DSL or docs; otherwise list the family for manual completion.
 
 ## Node DSL Inspection
 
+- After calling `read_component_config_data`, first use returned `subLayers` to judge direct child-layer names, text layers, and nested structure; call `get_node_dsl` only when required details are missing or complex structures need review.
 - Choose representative node IDs from `families[].nodeIds` in the summary output. Start with one representative node per component family; for variant-sensitive components, inspect at least the default variant and one non-default variant.
 - Pass the value exactly as `guid` even though it comes from `node_id`:
 
@@ -124,8 +186,10 @@ get_node_dsl({ "guid": "59194:149" })
 ```
 
 - Parse JSON from `result.content[0].text` when using an injected MCP tool. The fallback script already parses this text and prints JSON.
-- Expect a DSL document fragment, not always a bare node. Inspect `pixTreeNodes[0]` and, when present, `pixComponentTreeDslNodes[0]`; supporting maps such as `localStyleMap`, `variableMap`, and `svgGuidInfo` may appear at the same top level.
-- Use `childNode` entries and child layer names to decide stable `text.nodeName`, `icon.nodeName`, slot/traverse rules, `object` mappings, and `tableData` structure.
+- Expect compact DSL. Treat `roots` as the requested node tree and recursively inspect `children`; `refsIndex` contains lightweight variable, style, component-set, vector, and image references rather than complete definitions.
+- For component instances, follow `componentRef` to the component or concrete variant, use `componentSetRef` for the containing set, align instance children with definition nodes through `componentNodeRef`, and read instance differences from `override`. Query required `componentRef` values recursively instead of inferring structure from legacy DSL fields.
+- Use real layer names under `roots` / `children`, together with `componentNodeRef` and `override` when needed, to decide stable `text.nodeName`, `icon.nodeName`, slot/traverse rules, `object` mappings, and `tableData` structure.
+- Resolve variable, style, and asset definitions through tools using IDs from `refsIndex`. Do not treat compact DSL as a complete raw file or call default/inherited field omission data loss.
 - Use visual properties from node DSL for `attr` only when they map cleanly to documented target component prop semantics.
 - Do not call `get_node_dsl` for every raw component unless needed; sample enough variants to confirm layer names and state-dependent structure.
 - If one `node_id` fails, try another `nodeIds` entry from the same family. If all fail, put that family in the manual completion list instead of fabricating rules.

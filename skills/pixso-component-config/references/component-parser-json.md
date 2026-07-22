@@ -38,9 +38,10 @@ Import declaration:
 
 - `name`: output tag name.
 - `props`: read variant props from Pixso component instances.
-- `props.filter`: filter prop values, not prop names.
+- `props.filter`: filter only **cross-prop generic** variant values (default `md` / `default` / `false`); it cannot filter by key, and prop-specific values should not be placed in filter.
 - `props.showTrueValue`: preserve explicit boolean `true` output.
 - `props.customProps`: add fixed props or props backed by object aggregation results.
+- `props.mappings`: variant key/value mapping. If the mapped output key or value is `""`, suppress it (entire axis: `"PropName": ""` / `{ "name": "" }`; single value: `""` in `values`). `filter` runs before mappings.
 - `text`: extract copy from child text nodes.
 - `icon`: extract icons from child icon layers.
 - `attr`: map visual values to props.
@@ -50,10 +51,25 @@ Import declaration:
 
 ## Safe defaults
 
-Default prop filter:
+Default prop filter (only cross-prop generic values):
 
 ```json
-["default", "md", "normal", "false", "N/A"]
+["md", "default", "false"]
+```
+
+Prop-specific default suppression example:
+
+```json
+{
+  "Type": {
+    "name": "type",
+    "values": {
+      "primary": "primary",
+      "secondary": ""
+    }
+  },
+  "DocumentationTag": ""
+}
 ```
 
 Common text probes:
@@ -99,6 +115,7 @@ Common `@icons` config:
 ## Do not guess
 
 - Do not invent `attr.mappings` without confirmed visual values and target prop semantics.
+- Do not invent `props.mappings` without confirmed variant names/values and target prop correspondence.
 - Do not invent `text.nodeName` for every component from component metadata alone.
 - Do not map private / helper / legacy components unless the target codebase has a matching public component.
 - Do not import icon components separately unless the generated rules actually reference them.
